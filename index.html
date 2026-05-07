@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>교무실 하이패스 (Hi-Pass)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-sans: 'Inter', sans-serif;
+      --font-display: 'Outfit', sans-serif;
+    }
+    body {
+      font-family: var(--font-sans);
+      background-color: #F8FAFC;
+      color: #1E2937;
+      margin: 0;
+    }
+    .font-display { font-family: var(--font-display); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18.2.0?dev';
+    import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client?dev';
+    import htm from 'https://esm.sh/htm';
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { 
+      getFirestore, collection, onSnapshot, query, orderBy, limit, 
+      addDoc, serverTimestamp, doc, updateDoc, getDocs, setDoc
+    } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+    import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { 
+      Bell, User, Clock, CheckCircle, Volume2, Mic2, 
+      Smartphone, Tablet, UserCheck, School, GraduationCap,
+      Activity, Coffee, MessageSquare, LogIn
+    } from 'https://esm.sh/lucide-react@0.344.0';
+    import { motion, AnimatePresence } from 'https://esm.sh/framer-motion@11.0.8';
+
+    const html = htm.bind(React.createElement);
+
+    /** Firebase Configuration */
+    const firebaseConfig = {
+      projectId: "gen-lang-client-0629642533",
+      appId: "1:272792900106:web:0003a720ad189973cb85f3",
+      apiKey: "AIzaSyD_jR_IpBs4ZBWcrycffAdODcbhvmzJ-eg",
+      authDomain: "gen-lang-client-0629642533.firebaseapp.com",
+      storageBucket: "gen-lang-client-0629642533.firebasestorage.app",
+      messagingSenderId: "272792900106"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app, "ai-studio-c862a5ec-1928-4f36-bac1-305757c463ee");
+    const auth = getAuth(app);
+
+    const TEACHERS_SEED = [
+      { id: 't1', name: '김민수', subject: '국어', status: 'present' },
+      { id: 't2', name: '이영희', subject: '수학', status: 'present' },
+      { id: 't3', name: '박정우', subject: '영어', status: 'meeting' },
+      { id: 't4', name: '최지은', subject: '과학', status: 'present' },
+      { id: 't5', name: '정현우', subject: '사회', status: 'absent' },
+      { id: 't6', name: '한소희', subject: '미술', status: 'present' },
+      { id: 't7', name: '강동원', subject: '체육', status: 'present' },
+      { id: 't8', name: '조세호', subject: '음악', status: 'present' },
+      { id: 't9', name: '윤아름', subject: '정보', status: 'present' },
+      { id: 't10', name: '임나연', subject: '기술', status: 'absent' },
+      { id: 't11', name: '손석구', subject: '한국사', status: 'present' },
+      { id: 't12', name: '전여빈', subject: '지리', status: 'present' },
+      { id: 't13', name: '안유진', subject: '화학', status: 'present' },
+      { id: 't14', name: '장원영', subject: '생명', status: 'meeting' },
+      { id: 't15', name: '이대휘', subject: '물리', status: 'absent' },
+      { id: 't16', name: '강다니엘', subject: '지학', status: 'present' },
+      { id: 't17', name: '카리나', subject: '한문', status: 'present' },
+      { id: 't18', name: '윈터', subject: '일본어', status: 'present' },
+      { id: 't19', name: '유지민', subject: '중국어', status: 'present' },
+      { id: 't20', name: '서현진', subject: '윤리', status: 'present' },
+    ];
+
+    function App() {
+      const [view, setView] = useState('land');
+      const [user, setUser] = useState(null);
+
+      useEffect(() => {
+        const seed = async () => {
+          try {
+            const snap = await getDocs(collection(db, 'teachers'));
+            if (snap.empty) {
+              for (const t of TEACHERS_SEED) {
+                await setDoc(doc(db, 'teachers', t.id), { ...t, updatedAt: serverTimestamp() });
+              }
+            }
+          } catch (e) {
+            console.error("Seed error:", e);
+          }
+        };
+        seed();
+        return onAuthStateChanged(auth, setUser);
+      }, []);
+
+      const renderView = () => {
+        switch (view) {
+          case 'student': return html`<${StudentView} />`;
+          case 'office': return html`<${OfficeView} />`;
+          case 'teacher': return html`<${TeacherView} />`;
+          default: return html`<${LandingView} setView=${setView} user=${user} />`;
+        }
+      };
+
+      return html`
+        <div className="min-h-screen">
+          <header className="bg-white border-b border-blue-100 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm backdrop-blur-md bg-white/90">
+            <div className="flex items-center gap-3 cursor-pointer group" onClick=${() => setView('land')}>
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl group-hover:scale-105 transition-transform shadow-lg shadow-blue-100 font-display">H</div>
+              <h1 className="text-xl font-extrabold tracking-tight text-blue-900 font-display">교무실 <span className="text-blue-600">하이패스</span></h1>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">Sync Active</span>
+              </div>
+              ${user && html`
+                <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
+                  <img src=${user.photoURL || ""} className="w-7 h-7 rounded-full border border-slate-200" />
+                  <button onClick=${() => auth.signOut()} className="text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-tighter">Exit</button>
+                </div>
+              `}
+            </div>
+          </header>
+
+          <main className="container mx-auto p-4 md:p-8 max-w-6xl">
+            ${renderView()}
+          </main>
+
+          <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl border border-slate-200 rounded-full shadow-2xl p-1 flex gap-1 z-50">
+            <${TabBtn} active=${view === 'student'} onClick=${() => setView('student')}><${Smartphone} className="w-4 h-4 mr-1.5" />학생<//>
+            <${TabBtn} active=${view === 'office'} onClick=${() => setView('office')}><${Tablet} className="w-4 h-4 mr-1.5" />교무실<//>
+            <${TabBtn} active=${view === 'teacher'} onClick=${() => setView('teacher')}><${UserCheck} className="w-4 h-4 mr-1.5" />선생님<//>
+          </nav>
+        </div>
+      `;
+    }
+
+    function TabBtn({ children, active, onClick }) {
+      return html`
+        <button onClick=${onClick} className=${`flex items-center px-4 py-2.5 rounded-full text-xs font-black transition-all uppercase tracking-tighter ${active ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:bg-slate-100"}`}>
+          ${children}
+        </button>
+      `;
+    }
+
+    function LandingView({ setView, user }) {
+      return html`
+        <div className="space-y-12 text-center py-10">
+          <div className="space-y-4">
+            <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-full uppercase tracking-[0.2em]">Seamless School Experience</span>
+            <h2 className="text-5xl md:text-7xl font-black text-slate-900 tracking-[-0.05em] leading-[1] font-display pt-4">
+              기다림 없는 <br/><span className="text-blue-600">교무실 하이패스</span>
+            </h2>
+            <p className="text-slate-500 text-lg max-w-xl mx-auto font-medium">복도에서의 기다림을 설렘으로. <br/>스마트한 호출 시스템으로 학교 생활의 질을 높입니다.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            <${MenuCard} icon=${html`<${Smartphone} size=${32}/>`} title="학생용" desc="스마트폰으로 간편 호출" color="blue" onClick=${() => setView('student')} />
+            <${MenuCard} icon=${html`<${Tablet} size=${32}/>`} title="교무실용" desc="태블릿용 수신 화면 (TTS)" color="indigo" onClick=${() => setView('office')} />
+            <${MenuCard} icon=${html`<${UserCheck} size=${32}/>`} title="선생님용" desc="실시간 상태 관리" color="emerald" onClick=${() => setView('teacher')} />
+          </div>
+
+          ${!user && html`
+            <div className="pt-8">
+              <button onClick=${() => signInWithPopup(auth, new GoogleAuthProvider())} className="px-10 py-5 bg-white border border-slate-200 rounded-[2rem] font-black text-slate-700 hover:bg-slate-50 shadow-xl shadow-slate-100 flex items-center gap-4 mx-auto group">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white group-hover:rotate-12 transition-transform"><${LogIn} size=${16} /></div>
+                선생님/관리자 로그인
+              </button>
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function MenuCard({ icon, title, desc, onClick, color }) {
+      return html`
+        <button onClick=${onClick} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm transition-all hover:shadow-2xl hover:shadow-blue-50 hover:-translate-y-1 text-center space-y-6 group active:scale-95">
+          <div className="w-20 h-20 rounded-[1.5rem] bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-all mx-auto border border-slate-50">
+            ${icon}
+          </div>
+          <div>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tighter">${title}</h3>
+            <p className="text-[11px] text-slate-400 mt-2 font-bold uppercase tracking-widest">${desc}</p>
+          </div>
+        </button>
+      `;
+    }
+
+    function StudentView() {
+      const [teachers, setTeachers] = useState([]);
+      const [studentName, setStudentName] = useState('');
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        return onSnapshot(collection(db, 'teachers'), snap => {
+          setTeachers(snap.docs.map(d => ({id: d.id, ...d.data()})));
+          setLoading(false);
+        });
+      }, []);
+
+      const handleCall = async (t) => {
+        if (!studentName.trim()) return alert('이름을 입력해주세요.');
+        try {
+          await addDoc(collection(db, 'calls'), {
+            teacherId: t.id, teacherName: t.name, studentName: studentName.trim(),
+            status: 'pending', createdAt: serverTimestamp()
+          });
+          alert(`${t.name} 선생님을 호출했습니다.`);
+        } catch(e) { alert('호출 실패!'); }
+      };
+
+      return html`
+        <div className="max-w-md mx-auto space-y-6 pb-24">
+          <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-50 space-y-8">
+            <header className="text-center">
+              <div className="w-16 h-16 bg-blue-600 rounded-[1.25rem] flex items-center justify-center text-white mx-auto shadow-2xl shadow-blue-100 mb-4"><${Smartphone} size=${28}/><//>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tighter font-display">학생 인증</h2>
+            </header>
+            <div className="space-y-2">
+               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Student Name</label>
+               <input 
+                placeholder="예: 2학년 1반 홍길동"
+                className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none font-bold transition-all"
+                value=${studentName} onChange=${(e) => setStudentName(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] px-2">Teachers Directory</h3>
+            ${loading ? html`<div className="text-center py-10 opacity-30">Loading...</div>` :  teachers.map(t => html`
+              <div key=${t.id} className="bg-white p-5 rounded-[2rem] border border-slate-100 flex items-center justify-between group hover:border-blue-200 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className=${`w-1.5 h-10 rounded-full ${t.status === 'present' ? "bg-green-500" : t.status === 'meeting' ? "bg-yellow-400" : "bg-slate-300"}`} />
+                  <div>
+                    <h4 className="font-black text-slate-900 tracking-tight">${t.name} <span className="text-[10px] text-slate-400 font-bold ml-1">${t.subject}</span></h4>
+                    <span className=${`text-[10px] font-black uppercase tracking-widest block mt-0.5 ${t.status === 'present' ? "text-green-600" : t.status === 'meeting' ? "text-yellow-600" : "text-slate-400"}`}>
+                      ${t.status === 'present' ? "재석" : t.status === 'meeting' ? "상담 중" : "부재"}
+                    </span>
+                  </div>
+                </div>
+                <button 
+                  disabled=${t.status !== 'present'}
+                  onClick=${() => handleCall(t)}
+                  className=${`px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${t.status === 'present' ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-slate-100 text-slate-300 cursor-not-allowed"}`}
+                >Call</button>
+              </div>
+            `)}
+          </div>
+        </div>
+      `;
+    }
+
+    function OfficeView() {
+      const [calls, setCalls] = useState([]);
+      const [ttsOn, setTtsOn] = useState(false);
+      const activeIds = useRef(new Set());
+
+      useEffect(() => {
+        const q = query(collection(db, 'calls'), orderBy('createdAt', 'desc'), limit(12));
+        return onSnapshot(q, snap => {
+          const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
+          if (ttsOn) {
+            data.forEach(c => {
+              if (c.status === 'pending' && !activeIds.current.has(c.id)) {
+                const ut = new SpeechSynthesisUtterance(`${c.teacherName} 선생님, ${c.studentName} 학생이 호출합니다.`);
+                ut.lang = 'ko-KR'; window.speechSynthesis.speak(ut);
+                activeIds.current.add(c.id);
+              }
+            });
+          } else {
+            data.forEach(c => activeIds.current.add(c.id));
+          }
+          setCalls(data);
+        });
+      }, [ttsOn]);
+
+      return html`
+        <div className="space-y-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h2 className="text-4xl font-black text-slate-800 tracking-tighter font-display">현장 수신 센터</h2>
+              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-1">Realtime Terminal</p>
+            </div>
+            <button onClick=${() => setTtsOn(!ttsOn)} className=${`inline-flex items-center gap-3 px-6 py-4 rounded-3xl font-black text-[11px] transition-all tracking-widest uppercase shadow-xl ${ttsOn ? "bg-emerald-500 text-white" : "bg-slate-900 text-slate-400"}`}>
+              ${ttsOn ? html`<${Volume2} size=${16}/>` : html`<${Mic2} size=${16}/>`}
+              TTS VOICE ${ttsOn ? "ENABLED" : "MUTED"}
+            </button>
+          </div>
+
+          <div className="grid gap-4">
+            ${calls.map(c => html`
+              <div key=${c.id} className=${`p-6 bg-white rounded-[2.5rem] border flex items-center justify-between transition-all duration-500 shadow-sm ${c.status === 'pending' ? "border-blue-400 bg-blue-50 ring-4 ring-blue-50/50" : "border-slate-100 opacity-50"}`}>
+                <div className="flex items-center gap-6">
+                  <div className=${`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${c.status === 'pending' ? "bg-blue-600 text-white shadow-xl shadow-blue-100 animate-pulse" : "bg-slate-100 text-slate-300"}`}>
+                    <${Bell} size=${24} />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-black text-slate-900 tracking-tight">${c.teacherName} 선생님 <span className="text-slate-300">/</span> <span className="text-slate-500 font-bold">${c.studentName} 학생</span></h4>
+                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mt-1">${c.createdAt?.toDate?.()?.toLocaleTimeString?.() || "..."}</span>
+                  </div>
+                </div>
+                ${c.status === 'pending' && html`
+                  <button onClick=${() => updateDoc(doc(db, 'calls', c.id), { status: 'handled' })} 
+                    className="px-6 py-3 bg-white border border-slate-200 text-slate-800 rounded-xl font-black text-[10px] hover:bg-slate-50 uppercase tracking-widest">Mark Handled</button>
+                `}
+              </div>
+            `)}
+          </div>
+        </div>
+      `;
+    }
+
+    function TeacherView() {
+      const [teachers, setTeachers] = useState([]);
+      useEffect(() => {
+        return onSnapshot(collection(db, 'teachers'), snap => setTeachers(snap.docs.map(d => ({id:d.id, ...d.data()}))));
+      }, []);
+
+      const updateStatus = async (id, status) => {
+        await updateDoc(doc(db, 'teachers', id), { status, updatedAt: serverTimestamp() });
+      };
+
+      return html`
+        <div className="max-w-xl mx-auto space-y-8 pb-32">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-black tracking-tighter font-display">선생님 통합 제어</h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Sync your presence</p>
+          </div>
+
+          <div className="grid gap-6">
+            ${teachers.map(t => html`
+              <div key=${t.id} className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-6">
+                  <h3 className="font-black text-slate-900 text-xl tracking-tight">${t.name} <span className="text-xs text-slate-400 ml-1 font-bold">${t.subject}</span></h3>
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">${t.updatedAt?.toDate?.()?.toLocaleTimeString?.() || "..."}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <${StateSwitch} on=${t.status === 'present'} onClick=${() => updateStatus(t.id, 'present')} col="green" label="재석" />
+                  <${StateSwitch} on=${t.status === 'meeting'} onClick=${() => updateStatus(t.id, 'meeting')} col="yellow" label="상담" />
+                  <${StateSwitch} on=${t.status === 'absent'} onClick=${() => updateStatus(t.id, 'absent')} col="slate" label="부재" />
+                </div>
+              </div>
+            `)}
+          </div>
+        </div>
+      `;
+    }
+
+    function StateSwitch({ on, onClick, col, label }) {
+      const colors = {
+        green: on ? "bg-green-500 text-white shadow-lg shadow-green-100" : "bg-green-50/50 text-green-600 border-green-100 hover:bg-green-100/50",
+        yellow: on ? "bg-yellow-400 text-white shadow-lg shadow-yellow-100" : "bg-yellow-50/50 text-yellow-600 border-yellow-100 hover:bg-yellow-100/50",
+        slate: on ? "bg-slate-800 text-white shadow-lg shadow-slate-100" : "bg-slate-50/50 text-slate-400 border-slate-100 hover:bg-slate-100/50",
+      };
+      return html`
+        <button onClick=${onClick} className=${`px-4 py-5 rounded-2xl border text-[11px] font-black transition-all uppercase tracking-tighter ${colors[col]}`}>
+          ${label}
+        </button>
+      `;
+    }
+
+    createRoot(document.getElementById('root')).render(html`<${App} />`);
+  </script>
+</body>
+</html>
